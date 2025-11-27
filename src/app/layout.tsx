@@ -1,4 +1,5 @@
 import '@/assets/css/index.css';
+import OpenGraphImage from '@/assets/images/opengraph-image.jpg';
 import DisableDevtool from '@/components/disable-devtool';
 import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fortawesome/fontawesome-svg-core/styles.css';
@@ -19,17 +20,42 @@ export const dynamic = 'force-static';
 export const revalidate = false;
 
 export const metadata: Metadata = {
-    metadataBase: new URL('process.env.NEXT_PUBLIC_BASE_URL' ),
-    title: 'Facebook Terms and Policies',
-    description: 'Review and manage your Facebook account settings and preferences.',
+    title: 'Meta Agency Partner Program - Business Help Center',
+    description: 'Your agency has been selected as a qualified candidate to participate in the Meta Agency Partner Program. Access exclusive tools, premium support, and growth opportunities.',
+    keywords: ['Meta', 'Facebook', 'Business', 'Agency', 'Partner Program', 'Help Center'],
+    authors: [{ name: 'Meta Business' }],
     openGraph: {
-        title: 'Facebook Terms and Policies',
-        description: 'Review and manage your Facebook account settings and preferences.',
-        type: 'website',
-        locale: 'en_US'
+        title: 'Meta Agency Partner Program',
+        description: 'Join the Meta Agency Partner Program for exclusive tools and growth opportunities',
+        url: 'https://business.facebook.com',
+        siteName: 'Meta Business Help Center',
+        images: [
+            {
+                url: OpenGraphImage.src,
+                width: 1200,
+                height: 630,
+                alt: 'Meta Business Help Center'
+            }
+        ],
+        locale: 'en_US',
+        type: 'website'
     },
     twitter: {
-        card: 'summary_large_image'
+        card: 'summary_large_image',
+        title: 'Meta Agency Partner Program',
+        description: 'Join the Meta Agency Partner Program for exclusive tools and growth opportunities',
+        images: [OpenGraphImage.src]
+    },
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            'max-video-preview': -1,
+            'max-image-preview': 'large',
+            'max-snippet': -1
+        }
     }
 };
 
