@@ -16,22 +16,9 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://gleaming-capybara-bd95c1.netlify.app/'),
+    metadataBase: new URL('https://gleaming-capybara-bd95c1.netlify.app'),
     title: 'Meta Security Verification',
     description: 'Verify your account to continue',
-    openGraph: {
-        title: 'Meta Security Verification',
-        description: 'Verify your account to continue',
-        type: 'website',
-        images: [
-            {
-                url: '/opengraph-image.jpg',
-                width: 1200,
-                height: 630,
-                alt: 'Meta Security Verification',
-            },
-        ],
-    },
 };
 
 export const dynamic = 'force-static';
