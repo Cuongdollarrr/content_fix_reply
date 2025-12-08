@@ -22,7 +22,7 @@ export const generateMetadata = async () => {
     const base = `${proto}://${host}`;
     return {
         metadataBase: new URL(base),
-        title: 'Office Notice form FaceBook',
+        title: 'You are eligible to receive the Verified Badge',
         description: 'Meta Business Help Center - Official notification and verification system for Facebook business accounts'
     };
 };
